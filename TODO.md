@@ -1,7 +1,0 @@
-- [ ] Create a local preset of the files that we want leet it to access something like give the path and have a way to exclude some things we do not want it accessing 
-- [ ] Create a mechanism to set in the configs the color of the chat response from the AI
-- [ ] Make a cool console interface to select the files you do not want it to have access 
-- [ ] Make a command to edit the preset in the current file selecting what it has access to
-- [ ] Make a command to set the current path as a rag source dir for the chat
-- [ ] Make a option to run it locally only with the current dir as rag
-- [ ] Create a agent mode that does a correlation between the files in order to comprehend a user request
