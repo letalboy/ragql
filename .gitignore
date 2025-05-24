@@ -1,23 +1,63 @@
+# Python environment
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment variables
 .env
-.rag_chat.db
+.env.local
+.env.development
+.env.production
+.env.test
+*.env
+
+# Database files
 *.db
 *.db-shm
 *.db-wal
 *.db-journal
 *.db-trace
 *.db-trace.txt
-*.env
-*.env.local
-*.env.development
-*.env.production
-*.env.test
-*.env.development.local
-*.env.production.local
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-*.pyw
-*.pyz
-*.pywz
-*.pyzw
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+*.~ 
+
