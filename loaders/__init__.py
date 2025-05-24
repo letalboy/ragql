@@ -1,0 +1,22 @@
+"""Dynamic loader registry."""
+from importlib import import_module, util
+from pathlib import Path
+from typing import Iterable, Tuple, Protocol
+
+Doc = Tuple[str, str]            # (doc_id, full_text)
+
+class Loader(Protocol):
+    def load(self, path: Path) -> Iterable[Doc]: ...
+
+REGISTRY: list[Loader] = []
+
+def _discover():
+    here = Path(__file__).parent
+    for p in here.iterdir():
+        if p.suffix == ".py" and p.stem not in {"__init__", "__pycache__"}:
+            name = f"{__package__}.{p.stem}"
+            mod  = import_module(name)
+            if hasattr(mod, "load"):
+                REGISTRY.append(mod.load)
+
+_discover()
