@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from dotenv import load_dotenv
 import os
 import json
+from json import JSONDecodeError
 
 load_dotenv()
 
@@ -18,13 +19,23 @@ class Settings:
     openai_key: str     = os.getenv("OPENAI_API_KEY", "")
     ollama_url: str     = os.getenv("OLLAMA_URL", "")
     use_ollama: bool    = bool(os.getenv("OLLAMA_URL"))
+    
+    # ← insert these two lines:
+    line_spacing: int    = 1
+    response_color: str  = "default"
 
     @classmethod
     def load(cls) -> Settings:
-        # read the JSON config if it exists
+        """Read JSON config if present; ignore if missing or broken."""
         cfg = cls()
-        if Path(CONFIG_FILE).exists():
-            data = json.loads(Path(CONFIG_FILE).read_text())
+        p = Path(CONFIG_FILE)
+        if p.exists():
+            text = p.read_text()
+            try:
+                data = json.loads(text) if text.strip() else {}
+            except JSONDecodeError:
+                print(f"Warning: '{CONFIG_FILE}' contains invalid JSON, using defaults.")
+                return cfg
             for k, v in data.items():
                 if hasattr(cfg, k):
                     setattr(cfg, k, v)
@@ -33,18 +44,32 @@ class Settings:
     def save(self) -> None:
         # write current settings back to JSON
         with open(CONFIG_FILE, "w") as f:
-            json.dump(asdict(self), f, indent=2)
+            json.dump(asdict(self), f, indent=2, default=str)
 
 def config_menu() -> None:
     cfg = Settings.load()
     while True:
         print("\nConfiguration Menu:")
-        print("1. Customize Line Spacing")      # example, adjust as needed
+        print("1. Customize Line Spacing")
         print("2. Customize Response Color")
         print("3. Save and Exit")
         print("4. Exit without Saving")
-        choice = input("Choose an option: ")
-        if choice == "3":
+        choice = input("Choose an option: ").strip()
+
+        if choice == "1":
+            val = input("Enter line spacing (e.g., 1, 2, 3): ").strip()
+            try:
+                cfg.line_spacing = int(val)
+                print(f"Line spacing set to {cfg.line_spacing}.")
+            except ValueError:
+                print("Invalid number. Please enter an integer.")
+        elif choice == "2":
+            color = input(
+                "Enter response color (e.g., 'red','green','blue','default'): "
+            ).strip()
+            cfg.response_color = color
+            print(f"Response color set to '{cfg.response_color}'.")
+        elif choice == "3":
             cfg.save()
             print("Configuration saved.")
             break
@@ -52,8 +77,7 @@ def config_menu() -> None:
             print("Exiting without saving.")
             break
         else:
-            print("Not implemented yet.")
-
+            print("Invalid choice. Please try again.")
 
 def add_config_file() -> None:
     default = Settings()
