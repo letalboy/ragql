@@ -9,7 +9,7 @@ from json import JSONDecodeError
 
 load_dotenv()
 
-CONFIG_FILE = "config.json"
+CONFIG_FILE = "rag_config.json"
 
 @dataclass(slots=True)
 class Settings:
