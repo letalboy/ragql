@@ -7,7 +7,7 @@ vector storage, and the answering engine.
 
 from __future__ import annotations
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Iterator
 
 from .config import Settings
 from .loaders import REGISTRY
@@ -33,16 +33,29 @@ class RagQL:
 
     # Indexing:
 
-    def _iter_documents(self) -> Iterable[Doc]:
+    def _iter_documents(self) -> Iterator[Doc]:
+        """
+        Walk every file under self.root, hand it off to each loader in REGISTRY,
+        and yield back any (doc_id, text) tuples they emit.
+        """
         for path in self.root.rglob("*"):
             if not path.is_file():
                 continue
 
-            for load in REGISTRY:  # now a Callable[[Path], Iterable[Doc]]
+            for load in REGISTRY:  # now `load` is Callable[[Path], Iterable[Doc]]
                 try:
-                    yield from load(path)
+                    docs = load(path)  # call the loader function directly
                 except Exception:
+                    # loader didn’t like this file, skip it
                     continue
+
+                if not docs:
+                    # loader returned empty or None, skip
+                    continue
+
+                # finally, yield each (doc_id, text)
+                for doc in docs:
+                    yield doc
 
     def build(self) -> None:
         from .embeddings import get_embeddings

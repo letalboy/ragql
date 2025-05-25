@@ -1,14 +1,15 @@
 # src/ragql/loaders/__init__.py  ✅ your current code
 from importlib import import_module
 from pathlib import Path
-from typing import cast
 from typing import Iterable, Tuple, Protocol
 
 Doc = Tuple[str, str]  # (doc_id, full_text)
 
 
 class Loader(Protocol):
-    def load(self, path: Path) -> Iterable[Doc]: ...
+    def __call__(self, path: Path) -> Iterable[Doc]:
+        """Load documents from a path."""
+        ...
 
 
 REGISTRY: list[Loader] = []
@@ -20,7 +21,7 @@ def _discover() -> None:
         if p.suffix == ".py" and p.stem not in {"__init__", "__pycache__"}:
             mod = import_module(f"{__package__}.{p.stem}")
             if hasattr(mod, "load"):
-                REGISTRY.append(cast(Loader, mod))
+                REGISTRY.append(mod.load)  # mod.load is a function
 
 
 _discover()
