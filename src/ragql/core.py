@@ -11,7 +11,9 @@ from typing import Iterable
 
 from .config import Settings
 from .loaders import REGISTRY
+from .loaders import Doc
 from .storage import VectorStore, ChunkStore
+
 
 class RagQL:
     """
@@ -31,13 +33,18 @@ class RagQL:
 
     # Indexing:
 
-    def _iter_documents(self) -> Iterable[tuple[str, str]]:
+    def _iter_documents(self) -> Iterable[Doc]:
         for path in self.root.rglob("*"):
-            for loader in REGISTRY:
-                yield from loader(path)
+            if not path.is_file():
+                continue
+
+            for load in REGISTRY:  # now a Callable[[Path], Iterable[Doc]]
+                try:
+                    yield from load(path)
+                except Exception:
+                    continue
 
     def build(self) -> None:
-
         from .embeddings import get_embeddings
 
         new_texts, new_ids = [], []
@@ -58,8 +65,7 @@ class RagQL:
     # Querying:
 
     def query(self, prompt: str, top_k: int = 6) -> str:
-
-        from .embeddings import get_embeddings # <- lazy import
+        from .embeddings import get_embeddings  # <- lazy import
 
         vec = get_embeddings([prompt], self.cfg)
         hits = self.vstore.search(vec, top_k)
@@ -79,7 +85,9 @@ class RagQL:
         # defer heavy import
         if self.cfg.use_ollama:
             from .embeddings import call_ollama_chat
+
             return call_ollama_chat(prompt, context, self.cfg)
         else:
             from .embeddings import call_openai_chat
+
             return call_openai_chat(prompt, context, self.cfg)

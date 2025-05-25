@@ -7,8 +7,8 @@ from __future__ import annotations
 from importlib.metadata import version, PackageNotFoundError
 
 # Public API:
-from .core import RagQL           # main façade
-from .loaders import REGISTRY     # dynamic list of loader callables
+from .core import RagQL  # main façade
+from .loaders import REGISTRY  # dynamic list of loader callables
 
 __all__ = [
     "RagQL",
