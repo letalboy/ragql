@@ -11,6 +11,7 @@ from .config import (
 )
 from .core import RagQL
 
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         prog="ragql",
@@ -41,12 +42,13 @@ def main() -> None:
         nargs="*",
         help="Key/value for setting commands (e.g., 'openai key sk-…')",
     )
+
     args = ap.parse_args()
 
     # Load settings (reads .env + config.json)
     cfg = Settings.load()
     if args.remote:
-        cfg.use_openai = True
+        cfg.use_ollama = False
 
     # Subcommands
     if args.command == "add":
@@ -100,6 +102,7 @@ def main() -> None:
     except (KeyboardInterrupt, EOFError):
         print()  # newline
         return
+
 
 if __name__ == "__main__":
     main()

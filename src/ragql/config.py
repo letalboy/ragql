@@ -11,18 +11,19 @@ load_dotenv()
 
 CONFIG_FILE = "rag_config.json"
 
+
 @dataclass(slots=True)
 class Settings:
-    db_path: Path       = Path(__file__).parent / ".ragql.db"
-    chunk_size: int     = 800
-    chunk_overlap: int  = 80
-    openai_key: str     = os.getenv("OPENAI_API_KEY", "")
-    ollama_url: str     = os.getenv("OLLAMA_URL", "")
-    use_ollama: bool    = bool(os.getenv("OLLAMA_URL"))
-    
+    db_path: Path = Path(__file__).parent / ".ragql.db"
+    chunk_size: int = 800
+    chunk_overlap: int = 80
+    openai_key: str = os.getenv("OPENAI_API_KEY", "")
+    ollama_url: str = os.getenv("OLLAMA_URL", "")
+    use_ollama: bool = bool(os.getenv("OLLAMA_URL"))
+
     # ← insert these two lines:
-    line_spacing: int    = 1
-    response_color: str  = "default"
+    line_spacing: int = 1
+    response_color: str = "default"
 
     @classmethod
     def load(cls) -> Settings:
@@ -34,7 +35,9 @@ class Settings:
             try:
                 data = json.loads(text) if text.strip() else {}
             except JSONDecodeError:
-                print(f"Warning: '{CONFIG_FILE}' contains invalid JSON, using defaults.")
+                print(
+                    f"Warning: '{CONFIG_FILE}' contains invalid JSON, using defaults."
+                )
                 return cfg
             for k, v in data.items():
                 if hasattr(cfg, k):
@@ -45,6 +48,7 @@ class Settings:
         # write current settings back to JSON
         with open(CONFIG_FILE, "w") as f:
             json.dump(asdict(self), f, indent=2, default=str)
+
 
 def config_menu() -> None:
     cfg = Settings.load()
@@ -79,6 +83,7 @@ def config_menu() -> None:
         else:
             print("Invalid choice. Please try again.")
 
+
 def add_config_file() -> None:
     default = Settings()
     default.save()
@@ -86,17 +91,23 @@ def add_config_file() -> None:
 
 
 def add_folder(folder: str) -> None:
-    cfg = Settings.load()
-    folders = getattr(cfg, "allowed_folders", [])
+    # Load what's already on disk
+    path = Path(CONFIG_FILE)
+    if path.exists():
+        data = json.loads(path.read_text())
+    else:
+        data = {}
+
+    folders = data.get("allowed_folders", [])
     if folder in folders:
         print(f"Folder '{folder}' already present.")
         return
+
     folders.append(folder)
-    # write back
-    data = asdict(cfg)
     data["allowed_folders"] = folders
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+
+    # Write it back
+    path.write_text(json.dumps(data, indent=2))
     print(f"Added '{folder}' to allowed_folders.")
 
 
