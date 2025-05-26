@@ -1,7 +1,7 @@
 # src/ragql/config.py
 from __future__ import annotations
 from pathlib import Path
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, field, asdict
 import os
 import json
 from json import JSONDecodeError
@@ -19,6 +19,8 @@ class Settings:
     openai_key: str = os.getenv("OPENAI_API_KEY", "")
     ollama_url: str = os.getenv("OLLAMA_URL", "")
     use_ollama: bool = False
+
+    allowed_folders: list[str] = field(default_factory=list)
 
     # ← insert these two lines:
     line_spacing: int = 1
@@ -87,7 +89,7 @@ def config_menu() -> None:
             cfg.save()
             print("Configuration saved.")
             break
-        elif choice == "4":
+        elif choice == "5":
             print("Exiting without saving.")
             break
         else:
@@ -101,24 +103,19 @@ def add_config_file() -> None:
 
 
 def add_folder(folder: str) -> None:
-    # Load what's already on disk
-    path = Path(CONFIG_FILE)
-    if path.exists():
-        data = json.loads(path.read_text())
-    else:
-        data = {}
+    cfg = Settings.load()
 
-    folders = data.get("allowed_folders", [])
-    if folder in folders:
+    if folder in cfg.allowed_folders:
         print(f"Folder '{folder}' already present.")
         return
 
-    folders.append(folder)
-    data["allowed_folders"] = folders
+    cfg.allowed_folders.append(folder)
 
-    # Write it back
-    path.write_text(json.dumps(data, indent=2))
-    print(f"Added '{folder}' to allowed_folders.")
+    # now dumps everything, including allowed_folders
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(asdict(cfg), f, indent=2)
+
+    print(f"✅ Added '{folder}' to allowed_folders.")
 
 
 def set_openai_key(new_key: str) -> None:

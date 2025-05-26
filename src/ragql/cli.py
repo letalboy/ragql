@@ -1,7 +1,6 @@
 # src/ragql/cli.py
 import argparse
 import pathlib
-from pathlib import Path
 from .config import (
     Settings,
     config_menu,
@@ -31,6 +30,13 @@ def main() -> None:
         "--configs",
         action="store_true",
         help="Enter configuration mode",
+    )
+    ap.add_argument(
+        "--query",
+        "-q",
+        metavar="QUESTION",
+        help="Run a single RAG-powered query over your indexed sources",
+        type=str,
     )
     ap.add_argument(
         "command",
@@ -67,6 +73,7 @@ def main() -> None:
             ap.error("Usage: ragql set openai key <YOUR_KEY>")
         return
 
+    # Enter in the configs menu
     if args.configs:
         config_menu()
         return
@@ -81,6 +88,12 @@ def main() -> None:
     source = pathlib.Path(args.sources[0]).expanduser().resolve()
     rq = RagQL(source, cfg)
     rq.build()
+
+    # single-shot --query
+    if args.query:
+        answer = rq.query(args.query)
+        print(answer)
+        return
 
     # If they passed an inline question, answer and exit
     # (you could detect more than one and loop, but this matches your old style)
