@@ -127,4 +127,5 @@ def set_openai_key(new_key: str) -> None:
     cfg = Settings.load()
     cfg.openai_key = new_key
     cfg.save()
+
     print("Updated OPENAI_API_KEY in config file.")
