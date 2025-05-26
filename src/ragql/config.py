@@ -2,12 +2,11 @@
 from __future__ import annotations
 from pathlib import Path
 from dataclasses import asdict, dataclass
-from dotenv import load_dotenv
 import os
 import json
 from json import JSONDecodeError
 
-load_dotenv()
+# load_dotenv()
 
 CONFIG_FILE = "rag_config.json"
 
@@ -19,7 +18,7 @@ class Settings:
     chunk_overlap: int = 80
     openai_key: str = os.getenv("OPENAI_API_KEY", "")
     ollama_url: str = os.getenv("OLLAMA_URL", "")
-    use_ollama: bool = bool(os.getenv("OLLAMA_URL"))
+    use_ollama: bool = False
 
     # ← insert these two lines:
     line_spacing: int = 1
@@ -27,13 +26,12 @@ class Settings:
 
     @classmethod
     def load(cls) -> Settings:
-        """Read JSON config if present; ignore if missing or broken."""
+        """Read JSON config if present; otherwise fall back to env once."""
         cfg = cls()
         p = Path(CONFIG_FILE)
         if p.exists():
-            text = p.read_text()
             try:
-                data = json.loads(text) if text.strip() else {}
+                data = json.loads(p.read_text()) if p.read_text().strip() else {}
             except JSONDecodeError:
                 print(
                     f"Warning: '{CONFIG_FILE}' contains invalid JSON, using defaults."
@@ -42,6 +40,13 @@ class Settings:
             for k, v in data.items():
                 if hasattr(cfg, k):
                     setattr(cfg, k, v)
+        else:
+            # first-time run: grab any exisitng env vars
+
+            cfg.openai_key = os.getenv("OPENAI_API_KEY", "")
+            cfg.ollama_url = os.getenv("OLLAMA_URL", "")
+            cfg.use_ollama = bool(cfg.ollama_url)
+
         return cfg
 
     def save(self) -> None:
@@ -56,8 +61,9 @@ def config_menu() -> None:
         print("\nConfiguration Menu:")
         print("1. Customize Line Spacing")
         print("2. Customize Response Color")
-        print("3. Save and Exit")
-        print("4. Exit without Saving")
+        print("3. Set OpenAI API Key")
+        print("4. Save and Exit")
+        print("5. Exit without Saving")
         choice = input("Choose an option: ").strip()
 
         if choice == "1":
@@ -74,6 +80,10 @@ def config_menu() -> None:
             cfg.response_color = color
             print(f"Response color set to '{cfg.response_color}'.")
         elif choice == "3":
+            key = input("Enter your OpenAI API key: ").strip()
+            cfg.openai_key = key
+            print("OpenAI API key update in config.")
+        elif choice == "4":
             cfg.save()
             print("Configuration saved.")
             break
@@ -112,16 +122,9 @@ def add_folder(folder: str) -> None:
 
 
 def set_openai_key(new_key: str) -> None:
-    # update .env
-    env = Path(".env")
-    lines = env.read_text().splitlines() if env.exists() else []
-    updated = False
-    for i, line in enumerate(lines):
-        if line.startswith("OPENAI_API_KEY="):
-            lines[i] = f"OPENAI_API_KEY={new_key}"
-            updated = True
-            break
-    if not updated:
-        lines.append(f"OPENAI_API_KEY={new_key}")
-    env.write_text("\n".join(lines))
-    print("Updated OPENAI_API_KEY in .env")
+    """Update the OpenAI key in rag_config.json (no more .env!)."""
+
+    cfg = Settings.load()
+    cfg.openai_key = new_key
+    cfg.save()
+    print("Updated OPENAI_API_KEY in config file.")

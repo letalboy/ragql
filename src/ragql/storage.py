@@ -14,11 +14,13 @@ from typing import Iterable
 import faiss
 import numpy as np
 
+
 # SQLite helpers
 def _connect(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA journal_mode=WAL")  # better concurrency
     return conn
+
 
 # ChunkStore – text & metadata
 class ChunkStore:
@@ -38,7 +40,7 @@ class ChunkStore:
             "INSERT OR IGNORE INTO chunks VALUES (?,?,?,?)",
             (h, file, start, text),
         )
-        self.conn.commit() 
+        self.conn.commit()
 
     def build_context(self, hits: list[tuple[str, float]], max_len: int = 140) -> str:
         """Turn [(hash, score), …] into a multi-line context string."""
@@ -67,6 +69,7 @@ class ChunkStore:
         )
         self.conn.commit()
 
+
 # VectorStore – blobs & Faiss index
 class VectorStore:
     def __init__(self, db_path: Path):
@@ -91,9 +94,7 @@ class VectorStore:
         """
         cur = self.conn.cursor()
         for h, v in zip(ids, vecs):
-            cur.execute(
-                "INSERT OR REPLACE INTO vectors VALUES (?,?)", (h, v.tobytes())
-            )
+            cur.execute("INSERT OR REPLACE INTO vectors VALUES (?,?)", (h, v.tobytes()))
         self.conn.commit()
 
     # - - - Faiss --------------------------------------------------------
@@ -107,7 +108,7 @@ class VectorStore:
         mat = np.vstack([np.frombuffer(v, dtype="float32") for _, v in rows])
         faiss.normalize_L2(mat)
         index = faiss.IndexFlatIP(mat.shape[1])
-        index.add(mat)
+        index.add(x=mat)
 
         self.index = index
         self._hashes = [h for h, _ in rows]
@@ -118,12 +119,14 @@ class VectorStore:
         if self.index is None:
             raise RuntimeError("Faiss index not loaded; call load_faiss() first")
 
-        qvec = qvec.astype("float32")
+        qvec = qvec.astype("float32").reshape(1, -1)
         faiss.normalize_L2(qvec)
-        D, I = self.index.search(qvec, top_k)
+
+        distancies, indicies = self.index.search(x=qvec, k=top_k)
+
         return [
-            (self._hashes[i], float(D[0][rank]))
-            for rank, i in enumerate(I[0])
+            (self._hashes[i], float(distancies[0][rank]))
+            for rank, i in enumerate(indicies[0])
             if i != -1
         ]
 
@@ -132,11 +135,10 @@ class VectorStore:
     def _ensure_schema(self) -> None:
         cur = self.conn.cursor()
         cur.execute(
-            "CREATE TABLE IF NOT EXISTS vectors("
-            "hash TEXT PRIMARY KEY, "
-            "vec  BLOB)"
+            "CREATE TABLE IF NOT EXISTS vectors(hash TEXT PRIMARY KEY, vec  BLOB)"
         )
         self.conn.commit()
+
 
 # Convenience: build everything in one call (optional helper)
 def ingest_vectors(
