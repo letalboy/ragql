@@ -28,58 +28,137 @@ def _connect(db_path: Path) -> sqlite3.Connection:
 # ChunkStore – text & metadata
 class ChunkStore:
     def __init__(self, db_path: Path):
+        """Initialize the ChunkStore.
+
+        Opens a connection to the SQLite database at `db_path` and ensures
+        the required schema is in place.
+
+        Args:
+            db_path (Path): Path to the SQLite database file.
+        """
         self.db_path = db_path
         self.conn = _connect(db_path)
         self._ensure_schema()
         logger = logging.getLogger(__name__)
         logger.debug("ChunkStore init")
 
+    # ---------- private -------------------------------------------------
+
+    def _ensure_schema(self) -> None:
+        """Ensure the 'chunks' table and necessary columns exist in the database.
+
+        If the 'chunks' table does not exist, it will be created with columns:
+          - hash (TEXT PRIMARY KEY)
+          - file (TEXT)
+          - start (INT)
+          - text (TEXT)
+          - model (TEXT)
+
+        If the 'model' column is missing, it will be added with a default empty string.
+
+        Returns:
+            None
+        """
+        logger.debug("Ensuring schema")
+        cur = self.conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS chunks(
+                hash TEXT PRIMARY KEY, 
+                file TEXT,
+                start INT, 
+                text TEXT, 
+                model TEXT 
+            )
+        """)
+        cols = [row[1] for row in cur.execute("PRAGMA table_info(chunks)").fetchall()]
+        if "model" not in cols:
+            cur.execute("ALTER TABLE chunks ADD COLUMN model TEXT DEFAULT ''")
+        self.conn.commit()
+
     # ---------- public --------------------------------------------------
 
     @staticmethod
     def make_hash(doc_id: str, idx: int) -> str:
+        """Generate a deterministic MD5 hash for a document chunk.
+
+        Combines the document identifier and chunk index to produce
+        a unique hash string.
+
+        Args:
+            doc_id (str): Identifier of the source document.
+            idx (int): Index of the chunk within the document.
+
+        Returns:
+            str: MD5 hash of the form md5(f"{doc_id}:{idx}").
+        """
         logger.debug("Creating hash for the document")
         return md5(f"{doc_id}:{idx}".encode()).hexdigest()
 
-    def add(self, h: str, file: str, start: int, text: str) -> None:
+    def add(self, h: str, file: str, start: int, text: str, model: str) -> None:
+        """Insert a new chunk into the store if it doesn't already exist.
+
+        Uses INSERT OR IGNORE to avoid duplicates based on the primary-key hash.
+
+        Args:
+            h (str): Hash identifier for the chunk.
+            file (str): Originating file path or name.
+            start (int): Character offset at which this chunk begins.
+            text (str): The textual content of the chunk.
+            model (str): Name of the embedding/model source.
+
+        Returns:
+            None
+        """
         logger.debug("Adding data to the ChunkStoree")
         self.conn.execute(
-            "INSERT OR IGNORE INTO chunks VALUES (?,?,?,?)",
-            (h, file, start, text),
+            "INSERT OR IGNORE INTO chunks(hash, file, start, text, model) (?,?,?,?,?)",
+            (h, file, start, text, model),
         )
         self.conn.commit()
 
-    def build_context(self, hits: list[tuple[str, float]], max_len: int = 140) -> str:
-        """Turn [(hash, score), …] into a multi-line context string."""
-        logger.debug("Building context:")
+    def build_context(
+        self,
+        hits: list[tuple[str, float]],
+        max_len: int = 140,
+        model: str | None = None,
+    ) -> str:
+        """Construct a formatted context string from matching chunks.
+
+        Fetches stored chunks whose hashes match the provided `hits`,
+        optionally filtering by `model`, and returns a multi-line string
+        with each line showing the file name, a text excerpt (up to
+        `max_len` characters), and its similarity score.
+
+        Args:
+            hits (list[tuple[str, float]]): List of (hash, score) tuples,
+                in descending order of relevance.
+            max_len (int, optional): Maximum characters of text excerpt to include.
+                Defaults to 140.
+            model (str, optional): If given, only include chunks created with this model.
+
+        Returns:
+            str: Joined lines of the form "[file] excerpt … (sim 0.XX)".
+        """  # Build WHERE clauses
+        hashes = [h for h, _ in hits]
+        params = hashes[:]
+        where = f"hash IN ({','.join('?' * len(hashes))})"
+        if model:
+            where += " AND model = ?"
+            params.append(model)
+
         cur = self.conn.execute(
-            "SELECT file, text FROM chunks WHERE hash IN (%s)"
-            % ",".join("?" * len(hits)),
-            [h for h, _ in hits],
+            f"SELECT hash, file, text FROM chunks WHERE {where}", params
         )
-        rows = {h: (f, t) for (f, t), (h, _) in zip(cur.fetchall(), hits)}
-        lines = [
-            f"[{rows[h][0]}] {rows[h][1][:max_len]} … (sim {score:.2f})"
-            for h, score in hits
-        ]
-        context = "\n".join(lines)
-        logger.debug(context)
-        logger.debug("Context built")
-        return context
+        row_map = {h: (f, t) for h, f, t in cur.fetchall()}
 
-    # ---------- private -------------------------------------------------
+        lines = []
+        for h, score in hits:
+            if h not in row_map:
+                continue  # either a mismatch in model or a missing chunk
+            f, t = row_map[h]
+            lines.append(f"[{f}] {t[:max_len]} … (sim {score:.2f})")
 
-    def _ensure_schema(self) -> None:
-        logger.debug("Ensuring schema")
-        cur = self.conn.cursor()
-        cur.execute(
-            "CREATE TABLE IF NOT EXISTS chunks("
-            "hash TEXT PRIMARY KEY, "
-            "file TEXT, "
-            "start INT, "
-            "text TEXT)"
-        )
-        self.conn.commit()
+        return "\n".join(lines)
 
 
 # VectorStore – blobs & Faiss index
