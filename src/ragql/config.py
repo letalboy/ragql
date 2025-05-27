@@ -114,8 +114,9 @@ def config_menu() -> None:
         print("1. Customize Line Spacing")
         print("2. Customize Response Color")
         print("3. Set OpenAI API Key")
-        print("4. Save and Exit")
-        print("5. Exit without Saving")
+        print("4. Toggle verbose mode by default")
+        print("5. Save and Exit")
+        print("6. Exit without Saving")
         choice = input("Choose an option: ").strip()
 
         if choice == "1":

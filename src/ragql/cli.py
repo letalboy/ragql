@@ -24,13 +24,16 @@ def main() -> None:
     pre_args, remaining_argv = pre_parser.parse_known_args()
 
     # Configure logging based on verbose flag
-    log_level = logging.DEBUG if pre_args.verbose else logging.INFO
+    # Only show debug & info logs when verbose; otherwise show warnings and above
+    log_level = logging.DEBUG if pre_args.verbose else logging.WARNING
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s %(levelname)s: %(message)s",
         datefmt="%H:%M:%S",
     )
-    logging.debug("Verbose mode ON")
+
+    if pre_args.verbose:
+        logger.debug("Verbose mode ON")
 
     # Load settings (reads .env + config.json)
     cfg = Settings.load()
@@ -78,7 +81,8 @@ def main() -> None:
         help="Key/value for setting commands (e.g., 'openai key sk-…')",
     )
 
-    args = ap.parse_args()
+    # Parse only the leftover args, so -v is not considered here
+    args = ap.parse_args(remaining_argv)
 
     if args.migrate:
         logging.info("Migrating rag_config.json to the new format...")
