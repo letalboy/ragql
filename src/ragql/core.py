@@ -70,7 +70,7 @@ class RagQL:
                 if not self.vstore.has_vector(h):
                     new_ids.append(h)
                     new_texts.append(chunk)
-                    self.chunks.add(h, doc_id, idx, chunk)
+                    self.chunks.add(h, doc_id, idx, chunk, self.cfg.embed_model_name)
 
         if new_texts:
             vecs = get_embeddings(new_texts, self.cfg)
