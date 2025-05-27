@@ -1,7 +1,7 @@
 # src/ragql/cli.py
 import argparse
 import pathlib
-from pathlib import Path
+import logging
 from .config import (
     Settings,
     config_menu,
@@ -13,8 +13,25 @@ from .core import RagQL
 
 
 def main() -> None:
+    # Pre-parser: catch only -v/--verbose
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose debug output"
+    )
+    pre_args, remaining_argv = pre_parser.parse_known_args()
+
+    # Configure logging based on verbose flag
+    log_level = logging.DEBUG if pre_args.verbose else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s %(levelname)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    logging.debug("Verbose mode ON")
+
     # Load settings (reads .env + config.json)
     cfg = Settings.load()
+    logging.debug(f"Loaded config: {cfg!r}")
 
     ap = argparse.ArgumentParser(
         prog="ragql",
@@ -54,17 +71,21 @@ def main() -> None:
     )
 
     args = ap.parse_args()
+    logging.debug(f"Arguments: {args!r}")
 
     if args.remote:
         cfg.use_ollama = False
+        logging.debug("Forcing OpenAI (use_ollama=False)")
 
     # Subcommands
     if args.command == "add":
+        logging.info("Adding new config file")
         add_config_file()
         return
 
     # Add folder as source to the config
     if args.command == "add-folder" and args.key_value:
+        logging.info(f"Adding folder: {args.key_value[0]}")
         add_folder(args.key_value[0])
         return
 
@@ -72,6 +93,7 @@ def main() -> None:
     if args.command == "set" and len(args.key_value) >= 3:
         # Expect: set openai key <API_KEY
         if args.key_value[0] == "openai" and args.key_value[1] == "key":
+            logging.info("Setting OpenAI API key")
             set_openai_key(args.key_value[2])
         else:
             ap.error("Usage: ragql set openai key <YOUR_KEY>")
@@ -79,6 +101,7 @@ def main() -> None:
 
     # Enter in the configs menu
     if args.configs:
+        logging.info("Entering configuration menu")
         config_menu()
         return
 
@@ -92,11 +115,13 @@ def main() -> None:
 
     # Build index from the first source (expand as needed)
     source = pathlib.Path(sources[0]).expanduser().resolve()
+    logging.debug(f"Indexing source: {source}")
     rq = RagQL(source, cfg)
     rq.build()
 
-    # one-off query via --query
+    # 1) one-off query via --query
     if args.query:
+        logging.info(f"Querying: {args.query}")
         # if you want multi-word, either require quotes:
         #   ragql --query "what is status?"
         # or accept nargs='+' and join them:
@@ -110,11 +135,13 @@ def main() -> None:
     if args.command is None and len(args.sources) > 1:
         # no command, two positional args: sources + question
         question = args.sources[1]
+        logging.info(f"Inline query: {question}")
         print(rq.query(question))
         return
 
-    # Otherwise, drop into REPL: legacy “positional question” case
+    # Otherwise, drop into REPL:
     print("Entering interactive chat (Ctrl-C to exit)")
+    logging.info("Entering interactive chat (Ctrl-C to exit)")
     try:
         while True:
             q = input(">> ").strip()
@@ -123,6 +150,7 @@ def main() -> None:
             print(rq.query(q))
     except (KeyboardInterrupt, EOFError):
         print()  # newline
+        logging.info("Exiting")
         return
 
 

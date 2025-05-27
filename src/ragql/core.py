@@ -77,7 +77,7 @@ class RagQL:
 
     # Querying:
 
-    def query(self, prompt: str, top_k: int = 6) -> str:
+    def query(self, prompt: str, top_k: int = 6, verbose: bool = False) -> str:
         from .embeddings import get_embeddings  # <- lazy import
 
         vec = get_embeddings([prompt], self.cfg)

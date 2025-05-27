@@ -36,7 +36,9 @@ def get_embeddings(texts: List[str], cfg: Settings) -> np.ndarray:
         return _ollama_embed(texts, cfg)
     return _openai_embed(texts, cfg)
 
+
 # Public helpers – chat completion:
+
 
 def call_ollama_chat(prompt: str, context: str, cfg: Settings) -> str:
     payload = {
@@ -57,7 +59,9 @@ def call_openai_chat(prompt: str, context: str, cfg: Settings) -> str:
     try:
         from openai import OpenAI
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("`openai` package not installed: pip install openai") from exc
+        raise RuntimeError(
+            "`openai` package not installed: pip install openai"
+        ) from exc
 
     client = OpenAI(api_key=cfg.openai_key)
     rs = client.chat.completions.create(
@@ -70,6 +74,7 @@ def call_openai_chat(prompt: str, context: str, cfg: Settings) -> str:
 
 
 # Internal helpers:
+
 
 def _ollama_embed(texts: Iterable[str], cfg: Settings) -> np.ndarray:
     vecs = []
@@ -91,7 +96,9 @@ def _openai_embed(texts: Iterable[str], cfg: Settings) -> np.ndarray:
     try:
         from openai import OpenAI
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("`openai` package not installed: pip install openai") from exc
+        raise RuntimeError(
+            "`openai` package not installed: pip install openai"
+        ) from exc
 
     client = OpenAI(api_key=cfg.openai_key)
     res = client.embeddings.create(
@@ -102,8 +109,10 @@ def _openai_embed(texts: Iterable[str], cfg: Settings) -> np.ndarray:
 
 
 def _format_prompt(question: str, context: str) -> str:
-    return (
+    ppt = (
         "You are LogGPT. Using *only* the context below, answer the question.\n\n"
         f"Context:\n{context}\n\n"
         f"Question: {question}"
     )
+    print(ppt)
+    return ppt
