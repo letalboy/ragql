@@ -33,7 +33,8 @@ class Settings:
         p = Path(CONFIG_FILE)
         if p.exists():
             try:
-                data = json.loads(p.read_text()) if p.read_text().strip() else {}
+                text = p.read_text()
+                data = json.loads(text) if text.strip() else {}
             except JSONDecodeError:
                 print(
                     f"Warning: '{CONFIG_FILE}' contains invalid JSON, using defaults."
@@ -42,6 +43,7 @@ class Settings:
             for k, v in data.items():
                 if hasattr(cfg, k):
                     setattr(cfg, k, v)
+                    print(f"loaded config {k!r} → {v!r}")
         else:
             # first-time run: grab any exisitng env vars
 

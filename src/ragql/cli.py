@@ -1,6 +1,7 @@
 # src/ragql/cli.py
 import argparse
 import pathlib
+from pathlib import Path
 from .config import (
     Settings,
     config_menu,
@@ -12,9 +13,19 @@ from .core import RagQL
 
 
 def main() -> None:
+    # Load settings (reads .env + config.json)
+    cfg = Settings.load()
+
     ap = argparse.ArgumentParser(
         prog="ragql",
         description="Modular RAG chat over logs & DBs",
+    )
+    ap.add_argument(
+        "--query",
+        "-q",
+        metavar="QUESTION",
+        help="Run one RAG-powered query and exit",
+        type=str,
     )
     ap.add_argument(
         "--sources",
@@ -32,13 +43,6 @@ def main() -> None:
         help="Enter configuration mode",
     )
     ap.add_argument(
-        "--query",
-        "-q",
-        metavar="QUESTION",
-        help="Run a single RAG-powered query over your indexed sources",
-        type=str,
-    )
-    ap.add_argument(
         "command",
         nargs="?",
         help="Command to execute (e.g., 'add', 'add-folder', 'set')",
@@ -51,8 +55,6 @@ def main() -> None:
 
     args = ap.parse_args()
 
-    # Load settings (reads .env + config.json)
-    cfg = Settings.load()
     if args.remote:
         cfg.use_ollama = False
 
@@ -61,12 +63,14 @@ def main() -> None:
         add_config_file()
         return
 
+    # Add folder as source to the config
     if args.command == "add-folder" and args.key_value:
         add_folder(args.key_value[0])
         return
 
+    # Set openai key
     if args.command == "set" and len(args.key_value) >= 3:
-        # Expect: set openai key <API_KEY>
+        # Expect: set openai key <API_KEY
         if args.key_value[0] == "openai" and args.key_value[1] == "key":
             set_openai_key(args.key_value[2])
         else:
@@ -78,19 +82,25 @@ def main() -> None:
         config_menu()
         return
 
+    sources = args.sources or cfg.allowed_folders
+
     # Default: need at least one source
-    if not args.sources:
+    if not sources:
         ap.print_usage()
         print("Please provide at least one --sources path.")
         return
 
     # Build index from the first source (expand as needed)
-    source = pathlib.Path(args.sources[0]).expanduser().resolve()
+    source = pathlib.Path(sources[0]).expanduser().resolve()
     rq = RagQL(source, cfg)
     rq.build()
 
-    # single-shot --query
+    # one-off query via --query
     if args.query:
+        # if you want multi-word, either require quotes:
+        #   ragql --query "what is status?"
+        # or accept nargs='+' and join them:
+        #   ap.add_argument("--query","-q", nargs="+", ...)
         answer = rq.query(args.query)
         print(answer)
         return
@@ -100,11 +110,10 @@ def main() -> None:
     if args.command is None and len(args.sources) > 1:
         # no command, two positional args: sources + question
         question = args.sources[1]
-        answer = rq.query(question)
-        print(answer)
+        print(rq.query(question))
         return
 
-    # Otherwise, drop into REPL:
+    # Otherwise, drop into REPL: legacy “positional question” case
     print("Entering interactive chat (Ctrl-C to exit)")
     try:
         while True:
