@@ -13,6 +13,7 @@ from .config import Settings
 from .loaders import REGISTRY
 from .loaders import Doc
 from .storage import VectorStore, ChunkStore
+import logging
 
 
 class RagQL:
@@ -30,6 +31,8 @@ class RagQL:
         self.cfg = cfg
         self.chunks = ChunkStore(cfg.db_path)
         self.vstore = VectorStore(cfg.db_path)
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug(f"RagQL init: source={root}, verbose={cfg.verbose}")
 
     # Indexing:
 
@@ -77,7 +80,7 @@ class RagQL:
 
     # Querying:
 
-    def query(self, prompt: str, top_k: int = 6, verbose: bool = False) -> str:
+    def query(self, prompt: str, top_k: int = 6) -> str:
         from .embeddings import get_embeddings  # <- lazy import
 
         vec = get_embeddings([prompt], self.cfg)

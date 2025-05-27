@@ -19,6 +19,7 @@ class Settings:
     openai_key: str = os.getenv("OPENAI_API_KEY", "")
     ollama_url: str = os.getenv("OLLAMA_URL", "")
     use_ollama: bool = False
+    verbose = False
 
     allowed_folders: list[str] = field(default_factory=list)
 
@@ -88,10 +89,19 @@ def config_menu() -> None:
             cfg.openai_key = key
             print("OpenAI API key update in config.")
         elif choice == "4":
+            option = input(
+                "Enter True to enable verbose by default and False to disable it"
+            )
+            cfg.verbose = bool(option)
+            if option:
+                print("Verbose mode set to enabled")
+            else:
+                print("Verbose mode set to disable")
+        elif choice == "5":
             cfg.save()
             print("Configuration saved.")
             break
-        elif choice == "5":
+        elif choice == "6":
             print("Exiting without saving.")
             break
         else:
