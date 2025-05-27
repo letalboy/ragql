@@ -10,10 +10,13 @@ import sqlite3
 import logging
 from hashlib import md5
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable, List, Optional
 
 import faiss
 import numpy as np
+
+from ragql.config import Settings
+from ragql.embeddings import get_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -256,19 +259,57 @@ def ingest_vectors(
     chunk_store: ChunkStore,
     vec_store: VectorStore,
     docs: Iterable[tuple[str, str]],
-    chunker,
-    embed_fn,
+    chunker: Callable[[str], Iterable[str]],
+    cfg: Settings,
+    embed_fn: Optional[Callable[[list[str]], np.ndarray]] = None,
 ) -> None:
     """
-    High-level helper: feed `(doc_id, text)` pairs → store chunks + vectors.
+    Full ingestion pipeline: chunk texts, embed new chunks, and store results.
 
-    • `chunker(text)` yields chunks.
-    • `embed_fn(list[str])` returns np.ndarray of embeddings.
+    This helper performs two passes over the input documents:
+
+    1. **Chunk & store**
+       Splits each document’s text into chunks using `chunker`, computes a
+       unique hash for each chunk, and inserts any previously‐unseen chunks
+       into `chunk_store` along with the `cfg.embed_model` tag.
+    2. **Embed & index**
+       Batches all new chunks, obtains their embedding vectors via `embed_fn`
+       (or the default `get_embeddings(texts, cfg)`), and adds those vectors
+       to `vec_store`.
+
+    Args:
+        chunk_store (ChunkStore): Storage backend for text chunks.
+        vec_store (VectorStore): Storage backend for embedding vectors.
+        docs (Iterable[tuple[str, str]]): Sequence of `(doc_id, text)` pairs.
+        chunker (Callable[[str], Iterable[str]]): Function that splits a text
+            string into an iterable of chunk strings.
+        cfg (Settings): Configuration object providing `embed_model` and
+            provider information.
+        embed_fn (Optional[Callable[[list[str]], np.ndarray]]): A function that
+            takes a list of chunk strings and returns a NumPy array of
+            embeddings. If `None`, defaults to `get_embeddings(texts, cfg)`.
+
+    Raises:
+        ValueError: If `cfg.embed_provider` is not supported and no valid
+            `embed_fn` is supplied.
+
+    Side Effects:
+        - Inserts new chunks into `chunk_store`.
+        - Writes embeddings for those chunks into `vec_store`.
     """
 
-    logger.debug("Ingesting vectors")
+    logger.debug("Ingesting vectors with model %r", cfg.embed_model)
 
-    new_ids, new_chunks = [], []
+    # default embed function to your centralized helper
+    if embed_fn is None:
+
+        def default_embed_fn(texts: List[str]) -> np.ndarray:
+            return get_embeddings(texts, cfg)
+
+        embed_fn = default_embed_fn
+
+    new_ids: list[str] = []
+    new_chunks: list[str] = []
 
     # pass 1 – collect new chunks
     for doc_id, text in docs:
@@ -277,7 +318,8 @@ def ingest_vectors(
             if not vec_store.has_vector(h):
                 new_ids.append(h)
                 new_chunks.append(chunk)
-                chunk_store.add(h, doc_id, idx, chunk)
+                # store chunk along with its embed_model identifier
+                chunk_store.add(h, doc_id, idx, chunk, cfg.embed_model)
 
     # pass 2 – embed & store
     if new_chunks:
