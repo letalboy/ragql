@@ -52,34 +52,59 @@ class Settings:
     @classmethod
     def load(cls) -> Settings:
         """Read JSON config if present; otherwise fall back to env once."""
+        logger.debug("Starting Settings.load()")
         cfg = cls()
         p = Path(CONFIG_FILE)
         if p.exists():
-            try:
-                text = p.read_text()
-                data = json.loads(text) if text.strip() else {}
-            except JSONDecodeError:
-                print(
-                    f"Warning: '{CONFIG_FILE}' contains invalid JSON, using defaults."
-                )
-                return cfg
-            for k, v in data.items():
-                if hasattr(cfg, k):
-                    setattr(cfg, k, v)
-                    print(f"loaded config {k!r} → {v!r}")
+            logger.debug("Found config file at %s", p)
+            text = p.read_text()
+            if not text.strip():
+                logger.info("Config file is empty—using defaults.")
+            else:
+                try:
+                    data = json.loads(text) if text.strip() else {}
+                    logger.debug("Parsed JSON config: %r", data)
+                except JSONDecodeError:
+                    logger.warning(
+                        "Invalid JSON in %r—falling back to defaults.", CONFIG_FILE
+                    )
+                    return cfg
+                for k, v in data.items():
+                    if hasattr(cfg, k):
+                        setattr(cfg, k, v)
+                        logger.info(f"loaded config {k!r} → {v!r}")
+                    else:
+                        logger.debug("Skipping unknown config key %r", k)
         else:
+            logger.info(
+                "No config file found at %r—loading from environment variables.",
+                CONFIG_FILE,
+            )
+
             # first-time run: grab any exisitng env vars
 
             cfg.openai_key = os.getenv("OPENAI_API_KEY", "")
             cfg.ollama_url = os.getenv("OLLAMA_URL", "")
             cfg.use_ollama = bool(cfg.ollama_url)
 
+            logger.debug(
+                "Env-loaded: openai_key=%r, ollama_url=%r, use_ollama=%r",
+                cfg.openai_key,
+                cfg.ollama_url,
+                cfg.use_ollama,
+            )
+
         return cfg
 
     def save(self) -> None:
         """Write current settings back to JSON (including embed_model)."""
+        logger.debug("Saving settings to %s", CONFIG_FILE)
+
+        data = asdict(self)
         with open(CONFIG_FILE, "w") as f:
-            json.dump(asdict(self), f, indent=2, default=str)
+            json.dump(data, f, indent=2, default=str)
+
+        logger.info("Config successfully written (%d keys).", len(data))
 
 
 def config_menu() -> None:
