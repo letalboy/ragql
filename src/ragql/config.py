@@ -16,16 +16,35 @@ class Settings:
     db_path: Path = Path(__file__).parent / ".ragql.db"
     chunk_size: int = 800
     chunk_overlap: int = 80
+
+    # keys / endpoints
     openai_key: str = os.getenv("OPENAI_API_KEY", "")
     ollama_url: str = os.getenv("OLLAMA_URL", "")
     use_ollama: bool = False
+
+    # user prefs
     verbose = False
-
     allowed_folders: list[str] = field(default_factory=list)
-
-    # ← insert these two lines:
     line_spacing: int = 1
     response_color: str = "default"
+
+    # embed model selection: "<provider>::<model-name>"
+    embed_model: str = field(
+        default_factory=lambda: os.getenv(
+            "RAGQL_EMBED_MODEL", "openai::text-embedding-ada-002"
+        )
+    )
+
+    @property
+    def embed_provider(self) -> str:
+        """Return the embedding provider (before the '::')."""
+        return self.embed_model.split("::", 1)[0]
+
+    @property
+    def embed_model_name(self) -> str:
+        """Return the embedding model name (after the '::')."""
+        parts = self.embed_model.split("::", 1)
+        return parts[1] if len(parts) > 1 else parts[0]
 
     @classmethod
     def load(cls) -> Settings:
@@ -55,7 +74,7 @@ class Settings:
         return cfg
 
     def save(self) -> None:
-        # write current settings back to JSON
+        """Write current settings back to JSON (including embed_model)."""
         with open(CONFIG_FILE, "w") as f:
             json.dump(asdict(self), f, indent=2, default=str)
 
