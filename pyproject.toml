@@ -1,0 +1,42 @@
+[tool.poetry]
+name = "ragql"
+version = "0.1.0"
+description = "This project implements a local-first RAG chat system that reads and processes various text-based log files. It splits the content into manageable chunks, generates embeddings using Ollama or OpenAI, and allows users to interactively query the logs for specific information. The application features a customizable response format and supports configuration for user preferences."
+authors = ["Cristian Camargo Filho <ccf@cdone.com.br>"]
+readme = "README.md"
+packages = [
+  { include = "ragql", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python        = ">=3.10,<4.0"
+python-dotenv = "^1.1.0"
+numpy         = "^2.2.6"
+pandas        = "^2.2"
+faiss-cpu     = "^1.11"
+requests      = "^2.32"
+tqdm          = "^4.67"
+tabulate      = "^0.9"
+openai        = "^1.25"
+ollama        = "^0.4.8"
+typer = "^0.15.4"
+
+[tool.poetry.group.dev.dependencies]
+pytest     = "^8.2"
+pytest-cov = "^6.1.1"
+black      = "^25.1.0"
+ruff       = "^0.11.11"
+pre-commit = "^4.2.0"
+numpy         = "^2.2.6"
+typer = "^0.15.4"
+
+[tool.poetry.scripts]
+ragql = "ragql.cli:main"  # or "ragql.cli:main" if you still use argparse
+
+[build-system]
+requires    = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+# — pytest knows to add src/ to the PYTHONPATH so `import ragql` just works:
+[tool.pytest.ini_options]
+pythonpath = ["src"]
