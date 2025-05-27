@@ -132,13 +132,23 @@ def main() -> None:
         print("Please provide at least one --sources path.")
         return
 
-    # Build index from the first source (expand as needed)
-    source = pathlib.Path(sources[0]).expanduser().resolve()
-    logging.debug(f"Indexing source: {source}")
-    rq = RagQL(source, cfg)
+    # Build index from every source you passed (or every allowed_folder)
+    paths = [pathlib.Path(s).expanduser().resolve() for s in sources]
+
+    # build the first one
+    logging.debug(f"Indexing source: {paths[0]}")
+    rq = RagQL(paths[0], cfg)
     rq.build()
 
-    # 1) one-off query via --query
+    # build the rest re-using the same instance
+    for path in paths[1:]:
+        logging.debug(f"Indexing source: {path}")
+        rq.root = path
+        rq.build()
+
+    # At this point `rq` holds the last-built RagQL instance (with your full DB/FAISS index loaded)
+
+    # one-off query via --query
     if args.query:
         logging.info(f"Querying: {args.query}")
         # if you want multi-word, either require quotes:

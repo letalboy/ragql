@@ -257,7 +257,6 @@ def _openai_embed(texts: Iterable[str], cfg: Settings) -> np.ndarray:
         model=cfg.embed_model_name,
         input=list(texts),
     )
-    logger.debug("OpenAI embed raw response: %r", res)
 
     embeddings = np.array([d.embedding for d in res.data], dtype="float32")
     logger.debug("_openai_embed returning array of shape %r", embeddings.shape)
