@@ -155,6 +155,7 @@ def main() -> None:
     # Otherwise, drop into REPL:
     print("Entering interactive chat (Ctrl-C to exit)")
     logging.info("Entering interactive chat (Ctrl-C to exit)")
+
     try:
         while True:
             q = input(">> ").strip()
