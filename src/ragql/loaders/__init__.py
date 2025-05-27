@@ -1,4 +1,4 @@
-# src/ragql/loaders/__init__.py  ✅ your current code
+# src/ragql/loaders/__init__.py  
 from importlib import import_module
 from pathlib import Path
 from typing import Iterable, Tuple, Protocol
