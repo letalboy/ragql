@@ -1,14 +1,17 @@
 # src/ragql/config.py
 from __future__ import annotations
 from pathlib import Path
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, fields, asdict
 import os
 import json
+import logging
 from json import JSONDecodeError
 
 # load_dotenv()
 
 CONFIG_FILE = "rag_config.json"
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -157,3 +160,41 @@ def set_openai_key(new_key: str) -> None:
     cfg.save()
 
     print("Updated OPENAI_API_KEY in config file.")
+
+
+def migrate_config() -> None:
+    """
+    Read the old config file, transform only the
+    pieces that need updating, preserve everything else,
+    and write back the merged result.
+    """
+    p = Path(CONFIG_FILE)
+    if not p.exists():
+        print(f"No config file at {CONFIG_FILE}—nothing to migrate.")
+        return
+
+    # 2) Build a Settings instance from it (ignores unknown keys)
+    old_cfg = Settings.load()  # your existing loader
+
+    # 3) Create an up-to-date “base” dataclass
+    new_cfg = Settings()  # this has all the new defaults
+
+    # 4) Copy over any fields that existed in old_cfg
+    #    (this preserves user-set values, including fields you didn’t touch in the new schema)
+    for f in fields(Settings):
+        name = f.name
+        if hasattr(old_cfg, name):
+            setattr(new_cfg, name, getattr(old_cfg, name))
+
+    # 5) Now apply your schema changes.
+    #    For example, say you renamed `foo` → `bar`, or split `baz` into two:
+    # new_cfg.bar = new_cfg.foo; delattr(new_cfg, "foo")
+    # new_cfg.new_field = compute_something(old_cfg.some_other_field)
+    #
+    # (Only mutate the pieces that actually changed in the new version!)
+
+    # 6) Dump the merged result back to JSON
+    merged = asdict(new_cfg)
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(merged, f, indent=2)
+    print(f"Config migrated successfully—saved to {CONFIG_FILE}")

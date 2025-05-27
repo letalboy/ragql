@@ -7,6 +7,7 @@ from .config import (
     config_menu,
     add_config_file,
     add_folder,
+    migrate_config,
     set_openai_key,
 )
 from .core import RagQL
@@ -36,6 +37,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(
         prog="ragql",
         description="Modular RAG chat over logs & DBs",
+    )
+    ap.add_argument(
+        "--migrate",
+        action="store_true",
+        help="Migrate your config.json to the new schema, preserving unchanged fields",
     )
     ap.add_argument(
         "--query",
@@ -71,6 +77,13 @@ def main() -> None:
     )
 
     args = ap.parse_args()
+
+    if args.migrate:
+        logging.info("Migrating rag_config.json to the new format...")
+        migrate_config()
+        print("✅ Migration complete!")
+        return
+
     logging.debug(f"Arguments: {args!r}")
 
     if args.remote:
