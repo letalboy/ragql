@@ -12,6 +12,8 @@ from .config import (
 )
 from .core import RagQL
 
+logger = logging.getLogger(__name__)
+
 
 def main() -> None:
     # Pre-parser: catch only -v/--verbose
