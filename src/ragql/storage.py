@@ -114,7 +114,7 @@ class ChunkStore:
         """
         logger.debug("Adding data to the ChunkStoree")
         self.conn.execute(
-            "INSERT OR IGNORE INTO chunks(hash, file, start, text, model) (?,?,?,?,?)",
+            "INSERT OR IGNORE INTO chunks(hash, file, start, text, model) VALUES (?,?,?,?,?)",
             (h, file, start, text, model),
         )
         self.conn.commit()
