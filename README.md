@@ -16,6 +16,53 @@ Importantly, RagQL supports both **local** and **remote** LLM/embedding backends
 * **Configuration System** – Easily manage API keys and default settings through configuration files. RagQL supports a **`.env`** file for sensitive settings (like your OpenAI API key or Ollama server URL) and a **`config.json`** for persistent configuration (such as a list of data sources to index by default, or other preferences). A built-in config mode (`--configs`) allows you to add or remove indexed sources and set keys without manually editing files. These settings persist between runs, so you can "set and forget" your environment and data sources.
 * **Lightweight & Extensible** – Built with Python and standard libraries/frameworks (FAISS for embeddings index, `pandas` for data handling, `argparse` for CLI, etc.), the project remains lightweight and hackable. Developers can easily extend RagQL – for example, by adding new loader modules for different file formats, or integrating alternative vector stores – thanks to its clean, modular architecture.
 
+## Internals
+
+```mermaid
+flowchart TD
+  subgraph Startup
+    style Startup stroke:#a14FFF, fill:#a14FFF ,fill-opacity:0.1
+    A["CLI: ragql -v --query"] --> B["Settings.load()"]
+    B --> C{"config file exists?"}
+    C -->|yes| D["parse JSON"]
+    C -->|no| E["load env vars"]
+    D --> F["initialize Settings"]
+    E --> F
+    A --> G["RagQL.__init__()"]
+    G --> H["ensure DB schema"]
+  end
+
+  subgraph Indexing
+    style Indexing stroke:#a14FFF, fill:#a14FFF ,fill-opacity:0.1
+    A --> I["RagQL.build()"]
+    I --> J["scan_documents()"]
+    J --> K["discover docs & tables"]
+    K --> L["hash & check chunks"]
+    L --> M{"new chunks?"}
+    M -->|no| N["skip embeddings"]
+    M -->|yes| O["embed & store vectors"]
+    N --> P["load FAISS index"]
+    O --> P
+  end
+
+  subgraph Query
+    style Query stroke:#a14FFF, fill:#a14FFF ,fill-opacity:0.1
+    A --> Q["process query"]
+    Q --> R["get_embeddings()"]
+    R --> S["_openai_embed()"]
+    S --> T["receive embedding"]
+    Q --> U["faiss_search()"]
+    U --> V["top_k hits"]
+    V --> W["build_context()"]
+    W --> X["format prompt"]
+    X --> Y["call_openai_chat()"]
+    Y --> Z["OpenAI API request"]
+    Z --> AA["response JSON"]
+    AA --> AB["print answer"]
+  end
+
+```
+
 ## Installation
 
 **Prerequisites:** You'll need **Python 3.10+** and [Poetry](https://python-poetry.org/) (for dependency management) installed on your system (just if you want to contribute, otherwise the dependencies are only Python and the backend LLM provider of your choice). If you plan to use the local LLM mode, you should also install [Ollama](https://ollama.com/) and have it running (Ollama is available for macOS, Linux, and Windows; it provides a local API endpoint for running models). For remote mode, you'll need an OpenAI account and API key.
