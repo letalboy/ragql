@@ -6,17 +6,43 @@ import os
 import json
 import logging
 from json import JSONDecodeError
+import sys
 
 # load_dotenv()
 
 CONFIG_FILE = "rag_config.json"
+
+
+def find_config_dir(start_path: Path, config_filename: str) -> Path | None:
+    """
+    Walk up from start_path, checking each parent for config_filename.
+    Returns the first directory inwhich config_filename exists, or None.
+    """
+    current = start_path.resolve()
+    for candidate in (current, *current.parents):
+        if (candidate / config_filename).exists():
+            return candidate
+
+    return None
+
+
+base_folder = Path(__file__).parent
+config_folder = find_config_dir(base_folder, CONFIG_FILE)
+
+# Verify if config folder exists:
+if config_folder is None:
+    print(
+        f"⚠️ Could not locate '{CONFIG_FILE}' anywhere under {base_folder}",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
 class Settings:
-    db_path: Path = Path(__file__).parent / ".ragql.db"
+    db_path = config_folder / ".ragql.db"
     chunk_size: int = 800
     chunk_overlap: int = 80
 
