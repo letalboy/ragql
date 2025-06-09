@@ -161,9 +161,9 @@ def main() -> None:
 
     # If they passed an inline question, answer and exit
     # (you could detect more than one and loop, but this matches your old style)
-    if args.command is None and len(args.sources) > 1:
+    if args.command is None and len(sources) > 1:
         # no command, two positional args: sources + question
-        question = args.sources[1]
+        question = sources[1]
         logging.info(f"Inline query: {question}")
         print(rq.query(question))
         return
